@@ -1,0 +1,249 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#090b13">
+<title>AI Photo Studio</title>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+ background:#090b13;color:#fff;
+ font-family:Arial,sans-serif;
+ min-height:100vh;
+}
+header{
+ padding:20px;
+ display:flex;justify-content:space-between;
+ align-items:center;border-bottom:1px solid #252938;
+}
+.logo{font-size:21px;font-weight:bold}
+.logo span{color:#9b7cff}
+.tag{font-size:11px;color:#aaa}
+main{max-width:900px;margin:auto;padding:20px}
+h2{font-size:25px;margin:12px 0}
+.sub{color:#9298a8;font-size:13px;margin-bottom:22px}
+.upload{
+ border:2px dashed #6550b8;border-radius:18px;
+ padding:35px 15px;text-align:center;
+ background:#141626;cursor:pointer;
+}
+.upload .symbol{font-size:40px;margin-bottom:12px}
+.upload p{color:#a9a9bb;font-size:13px;margin:10px}
+button{
+ border:0;border-radius:10px;padding:12px 17px;
+ background:#805cf5;color:white;font-weight:bold;
+ cursor:pointer;font-size:13px;
+}
+button:active{transform:scale(.97)}
+.secondary{background:#252a3b}
+.preview{
+ margin-top:20px;background:#141626;
+ border-radius:16px;padding:12px;text-align:center;
+ min-height:180px;display:flex;
+ justify-content:center;align-items:center;
+ overflow:hidden;
+}
+canvas{max-width:100%;max-height:450px;display:none}
+.placeholder{color:#777;font-size:13px}
+.tools{
+ display:grid;grid-template-columns:1fr 1fr;
+ gap:12px;margin-top:20px;
+}
+.tool{
+ background:#141626;padding:15px;
+ border-radius:12px;
+}
+.tool label{font-size:13px;color:#c5c5d5}
+.tool input{width:100%;margin-top:15px;accent-color:#967aff}
+.value{float:right;color:#a78bfa}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.actions button{flex:1;min-width:100px}
+footer{text-align:center;color:#666;font-size:11px;padding:30px}
+@media(max-width:450px){
+ main{padding:15px}
+ .tools{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+ <div class="logo">AI <span>Photo Studio</span></div>
+ <div class="tag">PHOTO EDITOR v1.0</div>
+</header>
+
+<main>
+ <h2>Create your best photo.</h2>
+ <p class="sub">Upload • Edit • Enhance • Download</p>
+
+ <label class="upload" for="file">
+  <div class="symbol">📸</div>
+  <strong>Upload your photo</strong>
+  <p>Choose JPG, PNG or WEBP image</p>
+  <button type="button">Choose Image</button>
+ </label>
+
+ <input type="file" id="file" accept="image/*" hidden>
+
+ <div class="preview">
+  <p class="placeholder" id="placeholder">
+   Your photo preview will appear here
+  </p>
+  <canvas id="canvas"></canvas>
+ </div>
+
+ <div class="tools">
+
+  <div class="tool">
+   <label>Brightness <span class="value" id="bv">100%</span></label>
+   <input type="range" id="brightness" min="0" max="200" value="100">
+  </div>
+
+  <div class="tool">
+   <label>Contrast <span class="value" id="cv">100%</span></label>
+   <input type="range" id="contrast" min="0" max="200" value="100">
+  </div>
+
+  <div class="tool">
+   <label>Saturation <span class="value" id="sv">100%</span></label>
+   <input type="range" id="saturation" min="0" max="200" value="100">
+  </div>
+
+  <div class="tool">
+   <label>Blur <span class="value" id="blv">0px</span></label>
+   <input type="range" id="blur" min="0" max="10" value="0">
+  </div>
+
+ </div>
+
+ <div class="actions">
+  <button class="secondary" onclick="filter('grayscale(100%)')">B&W</button>
+  <button class="secondary" onclick="rotate()">↻ Rotate</button>
+  <button class="secondary" onclick="reset()">Reset</button>
+ </div>
+
+ <div class="actions">
+  <button onclick="download()">⬇ Download Photo</button>
+ </div>
+</main>
+
+<footer>
+ AI Photo Studio • Made with creativity
+</footer>
+
+<script>
+const file=document.getElementById('file');
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const placeholder=document.getElementById('placeholder');
+
+let img=new Image();
+let loaded=false;
+let rotation=0;
+let extraFilter='';
+
+const controls=['brightness','contrast','saturation','blur'];
+
+file.addEventListener('change',function(e){
+ const f=e.target.files[0];
+ if(!f)return;
+
+ if(!f.type.startsWith('image/')){
+ alert('Please select an image');
+ return;
+ }
+
+ const url=URL.createObjectURL(f);
+
+ img.onload=function(){
+  loaded=true;
+  rotation=0;
+  extraFilter='';
+  placeholder.style.display='none';
+  canvas.style.display='block';
+
+  controls.forEach(id=>{
+   const el=document.getElementById(id);
+   el.value=id==='blur'?0:100;
+  });
+
+  render();
+  URL.revokeObjectURL(url);
+ };
+
+ img.src=url;
+});
+
+function render(){
+ if(!loaded)return;
+
+ const w=img.naturalWidth;
+ const h=img.naturalHeight;
+ const sideways=Math.abs(rotation)%180===90;
+
+ canvas.width=sideways?h:w;
+ canvas.height=sideways?w:h;
+
+ ctx.save();
+ ctx.translate(canvas.width/2,canvas.height/2);
+ ctx.rotate(rotation*Math.PI/180);
+
+ const b=document.getElementById('brightness').value;
+ const c=document.getElementById('contrast').value;
+ const s=document.getElementById('saturation').value;
+ const blur=document.getElementById('blur').value;
+
+ ctx.filter=`brightness(${b}%) contrast(${c}%) saturate(${s}%) blur(${blur}px) ${extraFilter}`;
+ ctx.drawImage(img,-w/2,-h/2,w,h);
+ ctx.restore();
+
+ document.getElementById('bv').textContent=b+'%';
+ document.getElementById('cv').textContent=c+'%';
+ document.getElementById('sv').textContent=s+'%';
+ document.getElementById('blv').textContent=blur+'px';
+}
+
+controls.forEach(id=>{
+ document.getElementById(id).addEventListener('input',render);
+});
+
+function filter(value){
+ if(!loaded)return alert('Upload a photo first');
+ extraFilter=value;
+ render();
+}
+
+function rotate(){
+ if(!loaded)return alert('Upload a photo first');
+ rotation=(rotation+90)%360;
+ render();
+}
+
+function reset(){
+ if(!loaded)return;
+
+ controls.forEach(id=>{
+  document.getElementById(id).value=id==='blur'?0:100;
+ });
+
+ rotation=0;
+ extraFilter='';
+ render();
+}
+
+function download(){
+ if(!loaded)return alert('Upload a photo first');
+
+ const link=document.createElement('a');
+ link.download='AI-Photo-Studio.png';
+ link.href=canvas.toDataURL('image/png');
+ link.click();
+}
+</script>
+
+</body>
+</html>
